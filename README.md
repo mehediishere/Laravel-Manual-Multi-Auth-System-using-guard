@@ -10,14 +10,14 @@
 
 # <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Laravel.svg/1200px-Laravel.png" width="20"> Multi Auth System (Manually)
 
-| User Type | User Table | Controller |
+| User Type | Users Table | Controller |
 | ----------- | ----------- | ----------- |
-| Common user | User | UserController |
-| Admin User | Admin | AdminController |
+| Common user | users | FrontEndController |
+| Admin User | admins | AdminDashboardController |
 
 
 ## Edited Files
-- app/Providers/RouteServiceProvider.php
-- app/Http/Middleware/RedirectIfAuthenticated.php
-- app/Http/Middleware/Authenticate.php
-- config/auth.php
+- `config/auth.php`
+- `app/Providers/RouteServiceProvider.php`
+- `app/Http/Middleware/Authenticate.php`
+- `app/Http/Middleware/RedirectIfAuthenticated.php`
