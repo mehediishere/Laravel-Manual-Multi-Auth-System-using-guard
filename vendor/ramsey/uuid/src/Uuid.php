@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Ramsey\Uuid;
 
+use BadMethodCallException;
 use DateTimeInterface;
 use Ramsey\Uuid\Codec\CodecInterface;
 use Ramsey\Uuid\Converter\NumberConverterInterface;
@@ -292,7 +293,7 @@ class Uuid implements UuidInterface
      */
     public function serialize(): string
     {
-        return $this->getFields()->getBytes();
+        return $this->codec->encode($this);
     }
 
     /**
@@ -445,20 +446,20 @@ class Uuid implements UuidInterface
      */
     public static function fromBytes(string $bytes): UuidInterface
     {
-        if (! self::$factoryReplaced && strlen($bytes) === 16) {
+        if (!self::$factoryReplaced && strlen($bytes) === 16) {
             $base16Uuid = bin2hex($bytes);
 
             // Note: we are calling `fromString` internally because we don't know if the given `$bytes` is a valid UUID
             return self::fromString(
                 substr($base16Uuid, 0, 8)
-                . '-'
-                . substr($base16Uuid, 8, 4)
-                . '-'
-                . substr($base16Uuid, 12, 4)
-                . '-'
-                . substr($base16Uuid, 16, 4)
-                . '-'
-                . substr($base16Uuid, 20, 12)
+                    . '-'
+                    . substr($base16Uuid, 8, 4)
+                    . '-'
+                    . substr($base16Uuid, 12, 4)
+                    . '-'
+                    . substr($base16Uuid, 16, 4)
+                    . '-'
+                    . substr($base16Uuid, 20, 12)
             );
         }
 
@@ -484,7 +485,7 @@ class Uuid implements UuidInterface
     public static function fromString(string $uuid): UuidInterface
     {
         $uuid = strtolower($uuid);
-        if (! self::$factoryReplaced && preg_match(LazyUuidFromString::VALID_REGEX, $uuid) === 1) {
+        if (!self::$factoryReplaced && preg_match(LazyUuidFromString::VALID_REGEX, $uuid) === 1) {
             assert($uuid !== '');
 
             return new LazyUuidFromString($uuid);
@@ -515,6 +516,33 @@ class Uuid implements UuidInterface
     }
 
     /**
+     * Creates a UUID from the Hexadecimal object
+     *
+     * @param Hexadecimal $hex Hexadecimal object representing a hexadecimal number
+     *
+     * @return UuidInterface A UuidInterface instance created from the Hexadecimal
+     * object representing a hexadecimal number
+     *
+     * @psalm-pure note: changing the internal factory is an edge case not covered by purity invariants,
+     *             but under constant factory setups, this method operates in functionally pure manners
+     * @psalm-suppress MixedInferredReturnType,MixedReturnStatement
+     */
+    public static function fromHexadecimal(Hexadecimal $hex): UuidInterface
+    {
+        $factory = self::getFactory();
+
+        if (method_exists($factory, 'fromHexadecimal')) {
+            /**
+             * @phpstan-ignore-next-line
+             * @psalm-suppress UndefinedInterfaceMethod
+             */
+            return self::getFactory()->fromHexadecimal($hex);
+        }
+
+        throw new BadMethodCallException('The method fromHexadecimal() does not exist on the provided factory');
+    }
+
+    /**
      * Creates a UUID from a 128-bit integer string
      *
      * @param string $integer String representation of 128-bit integer
@@ -527,6 +555,7 @@ class Uuid implements UuidInterface
      */
     public static function fromInteger(string $integer): UuidInterface
     {
+        /** @psalm-suppress ImpureMethodCall */
         return self::getFactory()->fromInteger($integer);
     }
 
@@ -540,10 +569,11 @@ class Uuid implements UuidInterface
      * @psalm-pure note: changing the internal factory is an edge case not covered by purity invariants,
      *             but under constant factory setups, this method operates in functionally pure manners
      *
-     * @psalm-assert-if-true non-empty-string $uuid
+     * @psalm-assert-if-true =non-empty-string $uuid
      */
     public static function isValid(string $uuid): bool
     {
+        /** @psalm-suppress ImpureMethodCall */
         return self::getFactory()->getValidator()->validate($uuid);
     }
 
@@ -554,7 +584,7 @@ class Uuid implements UuidInterface
      * @param Hexadecimal|int|string|null $node A 48-bit number representing the
      *     hardware address; this number may be represented as an integer or a
      *     hexadecimal string
-     * @param int $clockSeq A 14-bit number used to help avoid duplicates that
+     * @param int|null $clockSeq A 14-bit number used to help avoid duplicates that
      *     could arise when the clock is set backwards in time or if the node ID
      *     changes
      *
@@ -658,7 +688,7 @@ class Uuid implements UuidInterface
      *
      * @param Hexadecimal|null $node A 48-bit number representing the hardware
      *     address
-     * @param int $clockSeq A 14-bit number used to help avoid duplicates that
+     * @param int|null $clockSeq A 14-bit number used to help avoid duplicates that
      *     could arise when the clock is set backwards in time or if the node ID
      *     changes
      *

@@ -16,9 +16,14 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogHandler;
 use Monolog\Handler\WhatFailureGroupHandler;
 use Monolog\Logger as Monolog;
+use Monolog\Processor\ProcessorInterface;
+use Monolog\Processor\PsrLogMessageProcessor;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
+/**
+ * @mixin \Illuminate\Log\Logger
+ */
 class LogManager implements LoggerInterface
 {
     use ParsesLogConfiguration;
@@ -290,7 +295,7 @@ class LogManager implements LoggerInterface
                     $config['bubble'] ?? true, $config['permission'] ?? null, $config['locking'] ?? false
                 ), $config
             ),
-        ]);
+        ], $config['replace_placeholders'] ?? false ? [new PsrLogMessageProcessor()] : []);
     }
 
     /**
@@ -306,7 +311,7 @@ class LogManager implements LoggerInterface
                 $config['path'], $config['days'] ?? 7, $this->level($config),
                 $config['bubble'] ?? true, $config['permission'] ?? null, $config['locking'] ?? false
             ), $config),
-        ]);
+        ], $config['replace_placeholders'] ?? false ? [new PsrLogMessageProcessor()] : []);
     }
 
     /**
@@ -330,7 +335,7 @@ class LogManager implements LoggerInterface
                 $config['bubble'] ?? true,
                 $config['exclude_fields'] ?? []
             ), $config),
-        ]);
+        ], $config['replace_placeholders'] ?? false ? [new PsrLogMessageProcessor()] : []);
     }
 
     /**
@@ -346,7 +351,7 @@ class LogManager implements LoggerInterface
                 Str::snake($this->app['config']['app.name'], '-'),
                 $config['facility'] ?? LOG_USER, $this->level($config)
             ), $config),
-        ]);
+        ], $config['replace_placeholders'] ?? false ? [new PsrLogMessageProcessor()] : []);
     }
 
     /**
@@ -361,7 +366,7 @@ class LogManager implements LoggerInterface
             $this->prepareHandler(new ErrorLogHandler(
                 $config['type'] ?? ErrorLogHandler::OPERATING_SYSTEM, $this->level($config)
             )),
-        ]);
+        ], $config['replace_placeholders'] ?? false ? [new PsrLogMessageProcessor()] : []);
     }
 
     /**
@@ -381,15 +386,35 @@ class LogManager implements LoggerInterface
             );
         }
 
+        collect($config['processors'] ?? [])->each(function ($processor) {
+            $processor = $processor['processor'] ?? $processor;
+
+            if (! is_a($processor, ProcessorInterface::class, true)) {
+                throw new InvalidArgumentException(
+                    $processor.' must be an instance of '.ProcessorInterface::class
+                );
+            }
+        });
+
         $with = array_merge(
             ['level' => $this->level($config)],
             $config['with'] ?? [],
             $config['handler_with'] ?? []
         );
 
-        return new Monolog($this->parseChannel($config), [$this->prepareHandler(
+        $handler = $this->prepareHandler(
             $this->app->make($config['handler'], $with), $config
-        )]);
+        );
+
+        $processors = collect($config['processors'] ?? [])
+            ->map(fn ($processor) => $this->app->make($processor['processor'] ?? $processor, $processor['with'] ?? []))
+            ->toArray();
+
+        return new Monolog(
+            $this->parseChannel($config),
+            [$handler],
+            $processors,
+        );
     }
 
     /**
@@ -550,7 +575,7 @@ class LogManager implements LoggerInterface
      * Unset the given channel instance.
      *
      * @param  string|null  $driver
-     * @return $this
+     * @return void
      */
     public function forgetChannel($driver = null)
     {

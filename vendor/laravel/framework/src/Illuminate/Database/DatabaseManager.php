@@ -4,6 +4,7 @@ namespace Illuminate\Database;
 
 use Doctrine\DBAL\Types\Type;
 use Illuminate\Database\Connectors\ConnectionFactory;
+use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Support\Arr;
 use Illuminate\Support\ConfigurationUrlParser;
 use Illuminate\Support\Str;
@@ -99,6 +100,12 @@ class DatabaseManager implements ConnectionResolverInterface
             $this->connections[$name] = $this->configure(
                 $this->makeConnection($database), $type
             );
+
+            if ($this->app->bound('events')) {
+                $this->app['events']->dispatch(
+                    new ConnectionEstablished($this->connections[$name])
+                );
+            }
         }
 
         return $this->connections[$name];
@@ -245,7 +252,7 @@ class DatabaseManager implements ConnectionResolverInterface
      * @param  string  $type
      * @return void
      *
-     * @throws \Doctrine\DBAL\DBALException
+     * @throws \Doctrine\DBAL\Exception
      * @throws \RuntimeException
      */
     public function registerDoctrineType(string $class, string $name, string $type): void

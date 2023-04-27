@@ -23,17 +23,6 @@ class ClearCommand extends Command
     protected $name = 'queue:clear';
 
     /**
-     * The name of the console command.
-     *
-     * This name is used to identify the command during lazy loading.
-     *
-     * @var string|null
-     *
-     * @deprecated
-     */
-    protected static $defaultName = 'queue:clear';
-
-    /**
      * The console command description.
      *
      * @var string
@@ -59,7 +48,7 @@ class ClearCommand extends Command
         // connection being run for the queue operation currently being executed.
         $queueName = $this->getQueue($connection);
 
-        $queue = ($this->laravel['queue'])->connection($connection);
+        $queue = $this->laravel['queue']->connection($connection);
 
         if ($queue instanceof ClearableQueue) {
             $count = $queue->clear($queueName);

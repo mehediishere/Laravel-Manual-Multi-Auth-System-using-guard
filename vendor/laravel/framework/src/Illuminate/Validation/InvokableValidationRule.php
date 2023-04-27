@@ -6,6 +6,7 @@ use Illuminate\Contracts\Validation\DataAwareRule;
 use Illuminate\Contracts\Validation\ImplicitRule;
 use Illuminate\Contracts\Validation\InvokableRule;
 use Illuminate\Contracts\Validation\Rule;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\ValidatorAwareRule;
 use Illuminate\Translation\PotentiallyTranslatedString;
 
@@ -14,7 +15,7 @@ class InvokableValidationRule implements Rule, ValidatorAwareRule
     /**
      * The invokable that validates the attribute.
      *
-     * @var \Illuminate\Contracts\Validation\InvokableRule
+     * @var \Illuminate\Contracts\Validation\ValidationRule|\Illuminate\Contracts\Validation\InvokableRule
      */
     protected $invokable;
 
@@ -49,10 +50,10 @@ class InvokableValidationRule implements Rule, ValidatorAwareRule
     /**
      * Create a new explicit Invokable validation rule.
      *
-     * @param  \Illuminate\Contracts\Validation\InvokableRule  $invokable
+     * @param  \Illuminate\Contracts\Validation\ValidationRule|\Illuminate\Contracts\Validation\InvokableRule  $invokable
      * @return void
      */
-    protected function __construct(InvokableRule $invokable)
+    protected function __construct(ValidationRule|InvokableRule $invokable)
     {
         $this->invokable = $invokable;
     }
@@ -60,16 +61,13 @@ class InvokableValidationRule implements Rule, ValidatorAwareRule
     /**
      * Create a new implicit or explicit Invokable validation rule.
      *
-     * @param  \Illuminate\Contracts\Validation\InvokableRule  $invokable
+     * @param  \Illuminate\Contracts\Validation\ValidationRule|\Illuminate\Contracts\Validation\InvokableRule  $invokable
      * @return \Illuminate\Contracts\Validation\Rule
      */
     public static function make($invokable)
     {
         if ($invokable->implicit ?? false) {
-            return new class($invokable) extends InvokableValidationRule implements ImplicitRule
-            {
-                //
-            };
+            return new class($invokable) extends InvokableValidationRule implements ImplicitRule {};
         }
 
         return new InvokableValidationRule($invokable);
@@ -94,7 +92,11 @@ class InvokableValidationRule implements Rule, ValidatorAwareRule
             $this->invokable->setValidator($this->validator);
         }
 
-        $this->invokable->__invoke($attribute, $value, function ($attribute, $message = null) {
+        $method = $this->invokable instanceof ValidationRule
+                        ? 'validate'
+                        : '__invoke';
+
+        $this->invokable->{$method}($attribute, $value, function ($attribute, $message = null) {
             $this->failed = true;
 
             return $this->pendingPotentiallyTranslatedString($attribute, $message);
@@ -106,7 +108,7 @@ class InvokableValidationRule implements Rule, ValidatorAwareRule
     /**
      * Get the underlying invokable rule.
      *
-     * @return \Illuminate\Contracts\Validation\InvokableRule
+     * @return \Illuminate\Contracts\Validation\ValidationRule|\Illuminate\Contracts\Validation\InvokableRule
      */
     public function invokable()
     {
@@ -153,7 +155,7 @@ class InvokableValidationRule implements Rule, ValidatorAwareRule
      * Create a pending potentially translated string.
      *
      * @param  string  $attribute
-     * @param  ?string  $message
+     * @param  string|null  $message
      * @return \Illuminate\Translation\PotentiallyTranslatedString
      */
     protected function pendingPotentiallyTranslatedString($attribute, $message)

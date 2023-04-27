@@ -1,14 +1,20 @@
-<ul style="text-align: center; list-style: none;">
-    <li><h1 style="color: cadetblue;">Hey Admin</h1></li>
-    <li><a href="{{ route('admin.login') }}">Login</a></li>
-    <li><a href="{{ route('admin.registration') }}">Registration</a></li>
-    <li><a href="{{ route('admin.profile') }}">Profile</a></li>
-</ul>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Dashboard</title>
+</head>
+<body>
+    <h4>Admin Home Page</h4>
 
-{{--<hr>--}}
-
-{{--@if (Auth::guard('webadmin')->check())--}}
-{{--    ok--}}
-{{--@else--}}
-{{--    not ok--}}
-{{--@endif--}}
+    @if(!auth()->guard('admin')->check())
+        <a href="{{ route('admin.login') }}">Login</a><br>
+        <a href="{{ route('admin.register') }}">Register</a>
+    @else
+        <a href="{{ route('admin.logout') }}">Logout</a>
+    @endif
+</body>
+</html>

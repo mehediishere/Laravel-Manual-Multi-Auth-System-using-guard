@@ -42,6 +42,7 @@ trait TestDatabases
             $databaseTraits = [
                 Testing\DatabaseMigrations::class,
                 Testing\DatabaseTransactions::class,
+                Testing\DatabaseTruncation::class,
                 Testing\RefreshDatabase::class,
             ];
 
@@ -87,7 +88,7 @@ trait TestDatabases
             $this->usingDatabase($testDatabase, function () {
                 Schema::hasTable('dummy');
             });
-        } catch (QueryException $e) {
+        } catch (QueryException) {
             $this->usingDatabase($database, function () use ($testDatabase) {
                 Schema::dropDatabaseIfExists($testDatabase);
                 Schema::createDatabase($testDatabase);

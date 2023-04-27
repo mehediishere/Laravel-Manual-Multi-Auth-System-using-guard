@@ -9,10 +9,13 @@
  */
 namespace SebastianBergmann\CodeCoverage\Report;
 
+use function basename;
 use function count;
 use function dirname;
 use function file_put_contents;
+use function preg_match;
 use function range;
+use function str_replace;
 use function time;
 use DOMImplementation;
 use SebastianBergmann\CodeCoverage\CodeCoverage;
@@ -171,7 +174,7 @@ final class Cobertura
                     $methodElement->appendChild($methodLinesElement);
 
                     foreach (range($method['startLine'], $method['endLine']) as $line) {
-                        if (!isset($coverageData[$line]) || $coverageData[$line] === null) {
+                        if (!isset($coverageData[$line])) {
                             continue;
                         }
                         $methodLineElement = $document->createElement('line');
@@ -252,7 +255,7 @@ final class Cobertura
                 $methodElement->appendChild($methodLinesElement);
 
                 foreach (range($function['startLine'], $function['endLine']) as $line) {
-                    if (!isset($coverageData[$line]) || $coverageData[$line] === null) {
+                    if (!isset($coverageData[$line])) {
                         continue;
                     }
                     $methodLineElement = $document->createElement('line');

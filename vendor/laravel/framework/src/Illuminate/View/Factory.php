@@ -16,6 +16,7 @@ class Factory implements FactoryContract
     use Macroable,
         Concerns\ManagesComponents,
         Concerns\ManagesEvents,
+        Concerns\ManagesFragments,
         Concerns\ManagesLayouts,
         Concerns\ManagesLoops,
         Concerns\ManagesStacks,
@@ -283,7 +284,7 @@ class Factory implements FactoryContract
     {
         try {
             $this->finder->find($view);
-        } catch (InvalidArgumentException $e) {
+        } catch (InvalidArgumentException) {
             return false;
         }
 
@@ -481,6 +482,7 @@ class Factory implements FactoryContract
         $this->flushSections();
         $this->flushStacks();
         $this->flushComponents();
+        $this->flushFragments();
     }
 
     /**

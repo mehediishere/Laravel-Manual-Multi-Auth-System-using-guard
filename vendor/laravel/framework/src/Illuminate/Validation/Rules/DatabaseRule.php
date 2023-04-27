@@ -81,7 +81,7 @@ trait DatabaseRule
      * Set a "where" constraint on the query.
      *
      * @param  \Closure|string  $column
-     * @param  \Illuminate\Contracts\Support\Arrayable|array|string|int|null  $value
+     * @param  \Illuminate\Contracts\Support\Arrayable|array|string|int|bool|null  $value
      * @return $this
      */
     public function where($column, $value = null)
@@ -167,6 +167,32 @@ trait DatabaseRule
         return $this->where(function ($query) use ($column, $values) {
             $query->whereNotIn($column, $values);
         });
+    }
+
+    /**
+     * Ignore soft deleted models during the existence check.
+     *
+     * @param  string  $deletedAtColumn
+     * @return $this
+     */
+    public function withoutTrashed($deletedAtColumn = 'deleted_at')
+    {
+        $this->whereNull($deletedAtColumn);
+
+        return $this;
+    }
+
+    /**
+     * Only include soft deleted models during the existence check.
+     *
+     * @param  string  $deletedAtColumn
+     * @return $this
+     */
+    public function onlyTrashed($deletedAtColumn = 'deleted_at')
+    {
+        $this->whereNotNull($deletedAtColumn);
+
+        return $this;
     }
 
     /**

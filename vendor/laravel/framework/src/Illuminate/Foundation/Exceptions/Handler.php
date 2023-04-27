@@ -268,11 +268,7 @@ class Handler implements ExceptionHandlerContract
             $this->levels, fn ($level, $type) => $e instanceof $type, LogLevel::ERROR
         );
 
-        $context = array_merge(
-            $this->exceptionContext($e),
-            $this->context(),
-            ['exception' => $e]
-        );
+        $context = $this->buildExceptionContext($e);
 
         method_exists($logger, $level)
             ? $logger->{$level}($e->getMessage(), $context)
@@ -301,6 +297,38 @@ class Handler implements ExceptionHandlerContract
         $dontReport = array_merge($this->dontReport, $this->internalDontReport);
 
         return ! is_null(Arr::first($dontReport, fn ($type) => $e instanceof $type));
+    }
+
+    /**
+     * Remove the given exception class from the list of exceptions that should be ignored.
+     *
+     * @param  string  $exception
+     * @return $this
+     */
+    public function stopIgnoring(string $exception)
+    {
+        $this->dontReport = collect($this->dontReport)
+                ->reject(fn ($ignored) => $ignored === $exception)->values()->all();
+
+        $this->internalDontReport = collect($this->internalDontReport)
+                ->reject(fn ($ignored) => $ignored === $exception)->values()->all();
+
+        return $this;
+    }
+
+    /**
+     * Create the context array for logging the given exception.
+     *
+     * @param  \Throwable  $e
+     * @return array
+     */
+    protected function buildExceptionContext(Throwable $e)
+    {
+        return array_merge(
+            $this->exceptionContext($e),
+            $this->context(),
+            ['exception' => $e]
+        );
     }
 
     /**
@@ -536,7 +564,7 @@ class Handler implements ExceptionHandlerContract
         }
 
         if (! $this->isHttpException($e)) {
-            $e = new HttpException(500, $e->getMessage());
+            $e = new HttpException(500, $e->getMessage(), $e);
         }
 
         return $this->toIlluminateResponse(

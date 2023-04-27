@@ -5,6 +5,7 @@ namespace Illuminate\Validation;
 use Closure;
 use Illuminate\Contracts\Validation\InvokableRule;
 use Illuminate\Contracts\Validation\Rule as RuleContract;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Exists;
@@ -86,9 +87,7 @@ class ValidationRuleParser
     protected function explodeExplicitRule($rule, $attribute)
     {
         if (is_string($rule)) {
-            [$name] = static::parseStringRule($rule);
-
-            return static::ruleIsRegex($name) ? [$rule] : explode('|', $rule);
+            return explode('|', $rule);
         }
 
         if (is_object($rule)) {
@@ -115,7 +114,7 @@ class ValidationRuleParser
             $rule = new ClosureValidationRule($rule);
         }
 
-        if ($rule instanceof InvokableRule) {
+        if ($rule instanceof InvokableRule || $rule instanceof ValidationRule) {
             $rule = InvokableValidationRule::make($rule);
         }
 

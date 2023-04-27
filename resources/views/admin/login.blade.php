@@ -1,12 +1,21 @@
-<h1 style="color: cadetblue;">Admin Login Form</h1>
-
-<form action="{{ route('admin.handleLogin') }}" method="POST">
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Admin Login</title>
+</head>
+<body>
+@if (session('error'))
+    <h3 style="color: red;">{{ session('error') }}</h3>
+@endif
+<form action="{{ route('admin.login') }}" method="post">
     @csrf
-    <input type="text" name="email" value="{{ old('email') }}" placeholder="Email" aria-label="Email">
-    <input type="password" name="password" placeholder="Password" aria-label="Password">
-    <input type="submit" name="submit">
+    <input type="email" name="email" placeholder="email"><br>
+    <input type="password" name="password" placeholder="*****"><br>
+    <button type="submit">Admin Login</button>
 </form>
-
-@error('email') <h3 style="color: #ff5151;">{{ $message }}</h3> @enderror
-@error('password') <h3 style="color: #ff5151;">{{ $message }}</h3> @enderror
-@error('error_message') <h3 style="color: #ff5151;">{{ $message }}</h3> @enderror
+</body>
+</html>

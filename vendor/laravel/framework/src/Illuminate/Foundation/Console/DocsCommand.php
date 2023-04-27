@@ -27,17 +27,6 @@ class DocsCommand extends Command
     protected $signature = 'docs {page? : The documentation page to open} {section? : The section of the page to open}';
 
     /**
-     * The name of the console command.
-     *
-     * This name is used to identify the command during lazy loading.
-     *
-     * @var string|null
-     *
-     * @deprecated
-     */
-    protected static $defaultName = 'docs';
-
-    /**
      * The console command description.
      *
      * @var string
@@ -87,21 +76,6 @@ class DocsCommand extends Command
     protected $systemOsFamily = PHP_OS_FAMILY;
 
     /**
-     * Create a new command instance.
-     *
-     * @param  \Illuminate\Http\Client\Factory  $http
-     * @param  \Illuminate\Contracts\Cache\Repository  $cache
-     * @return void
-     */
-    public function __construct(Http $http, Cache $cache)
-    {
-        parent::__construct();
-
-        $this->http = $http;
-        $this->cache = $cache;
-    }
-
-    /**
      * Configure the current command.
      *
      * @return void
@@ -118,10 +92,15 @@ class DocsCommand extends Command
     /**
      * Execute the console command.
      *
+     * @param  \Illuminate\Http\Client\Factory  $http
+     * @param  \Illuminate\Contracts\Cache\Repository  $cache
      * @return int
      */
-    public function handle()
+    public function handle(Http $http, Cache $cache)
     {
+        $this->http = $http;
+        $this->cache = $cache;
+
         try {
             $this->openUrl();
         } catch (ProcessFailedException $e) {
@@ -190,7 +169,7 @@ class DocsCommand extends Command
     /**
      * Determine the page to open.
      *
-     * @return ?string
+     * @return string|null
      */
     protected function resolvePage()
     {
@@ -216,7 +195,7 @@ class DocsCommand extends Command
     /**
      * Ask the user which page they would like to open.
      *
-     * @return ?string
+     * @return string|null
      */
     protected function askForPage()
     {
@@ -226,13 +205,13 @@ class DocsCommand extends Command
     /**
      * Ask the user which page they would like to open via a custom strategy.
      *
-     * @return ?string
+     * @return string|null
      */
     protected function askForPageViaCustomStrategy()
     {
         try {
             $strategy = require Env::get('ARTISAN_DOCS_ASK_STRATEGY');
-        } catch (Throwable $e) {
+        } catch (Throwable) {
             return null;
         }
 
@@ -246,7 +225,7 @@ class DocsCommand extends Command
     /**
      * Ask the user which page they would like to open using autocomplete.
      *
-     * @return ?string
+     * @return string|null
      */
     protected function askForPageViaAutocomplete()
     {
@@ -267,7 +246,7 @@ class DocsCommand extends Command
     /**
      * Guess the page the user is attempting to open.
      *
-     * @return ?string
+     * @return string|null
      */
     protected function guessPage()
     {
@@ -293,7 +272,7 @@ class DocsCommand extends Command
      * The section the user specifically asked to open.
      *
      * @param  string  $page
-     * @return ?string
+     * @return string|null
      */
     protected function section($page)
     {
@@ -316,7 +295,7 @@ class DocsCommand extends Command
      * Guess the section the user is attempting to open.
      *
      * @param  string  $page
-     * @return ?string
+     * @return string|null
      */
     protected function guessSection($page)
     {
@@ -367,7 +346,7 @@ class DocsCommand extends Command
     {
         try {
             $command = require Env::get('ARTISAN_DOCS_OPEN_STRATEGY');
-        } catch (Throwable $e) {
+        } catch (Throwable) {
             $command = null;
         }
 
@@ -482,7 +461,7 @@ class DocsCommand extends Command
      */
     protected function version()
     {
-        return Str::before(($this->version ?? $this->laravel->version()), '.').'.x';
+        return Str::before($this->version ?? $this->laravel->version(), '.').'.x';
     }
 
     /**

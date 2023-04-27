@@ -23,8 +23,10 @@ class MySqlGrammar extends Grammar
      */
     protected function whereNull(Builder $query, $where)
     {
-        if ($this->isJsonSelector($where['column'])) {
-            [$field, $path] = $this->wrapJsonFieldAndPath($where['column']);
+        $columnValue = (string) $this->getValue($where['column']);
+
+        if ($this->isJsonSelector($columnValue)) {
+            [$field, $path] = $this->wrapJsonFieldAndPath($columnValue);
 
             return '(json_extract('.$field.$path.') is null OR json_type(json_extract('.$field.$path.')) = \'NULL\')';
         }
@@ -41,8 +43,10 @@ class MySqlGrammar extends Grammar
      */
     protected function whereNotNull(Builder $query, $where)
     {
-        if ($this->isJsonSelector($where['column'])) {
-            [$field, $path] = $this->wrapJsonFieldAndPath($where['column']);
+        $columnValue = (string) $this->getValue($where['column']);
+
+        if ($this->isJsonSelector($columnValue)) {
+            [$field, $path] = $this->wrapJsonFieldAndPath($columnValue);
 
             return '(json_extract('.$field.$path.') is not null AND json_type(json_extract('.$field.$path.')) != \'NULL\')';
         }
@@ -72,6 +76,22 @@ class MySqlGrammar extends Grammar
             : '';
 
         return "match ({$columns}) against (".$value."{$mode}{$expanded})";
+    }
+
+    /**
+     * Compile the index hints for the query.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  \Illuminate\Database\Query\IndexHint  $indexHint
+     * @return string
+     */
+    protected function compileIndexHint(Builder $query, $indexHint)
+    {
+        return match ($indexHint->type) {
+            'hint' => "use index ({$indexHint->index})",
+            'force' => "force index ({$indexHint->index})",
+            default => "ignore index ({$indexHint->index})",
+        };
     }
 
     /**
@@ -142,7 +162,7 @@ class MySqlGrammar extends Grammar
     /**
      * Compile the random statement into SQL.
      *
-     * @param  string  $seed
+     * @param  string|int  $seed
      * @return string
      */
     public function compileRandom($seed)

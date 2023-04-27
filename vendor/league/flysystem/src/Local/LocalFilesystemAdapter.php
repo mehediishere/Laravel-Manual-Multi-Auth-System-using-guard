@@ -31,6 +31,7 @@ use League\MimeTypeDetection\MimeTypeDetector;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Throwable;
 use function chmod;
 use function clearstatcache;
 use function dirname;
@@ -58,35 +59,10 @@ class LocalFilesystemAdapter implements FilesystemAdapter, ChecksumProvider
      */
     public const DISALLOW_LINKS = 0002;
 
-    /**
-     * @var PathPrefixer
-     */
-    private $prefixer;
-
-    /**
-     * @var int
-     */
-    private $writeFlags;
-
-    /**
-     * @var int
-     */
-    private $linkHandling;
-
-    /**
-     * @var VisibilityConverter
-     */
-    private $visibility;
-
-    /**
-     * @var MimeTypeDetector
-     */
-    private $mimeTypeDetector;
-
-    /**
-     * @var string
-     */
-    private $rootLocation;
+    private PathPrefixer $prefixer;
+    private VisibilityConverter $visibility;
+    private MimeTypeDetector $mimeTypeDetector;
+    private string $rootLocation;
 
     /**
      * @var bool
@@ -96,15 +72,14 @@ class LocalFilesystemAdapter implements FilesystemAdapter, ChecksumProvider
     public function __construct(
         string $location,
         VisibilityConverter $visibility = null,
-        int $writeFlags = LOCK_EX,
-        int $linkHandling = self::DISALLOW_LINKS,
+        private int $writeFlags = LOCK_EX,
+        private int $linkHandling = self::DISALLOW_LINKS,
         MimeTypeDetector $mimeTypeDetector = null,
         bool $lazyRootCreation = false,
     ) {
         $this->prefixer = new PathPrefixer($location, DIRECTORY_SEPARATOR);
-        $this->writeFlags = $writeFlags;
-        $this->linkHandling = $linkHandling;
-        $this->visibility = $visibility ?: new PortableVisibilityConverter();
+        $visibility ??= new PortableVisibilityConverter();
+        $this->visibility = $visibility;
         $this->rootLocation = $location;
         $this->mimeTypeDetector = $mimeTypeDetector ?: new FallbackMimeTypeDetector(new FinfoMimeTypeDetector());
 
@@ -231,25 +206,33 @@ class LocalFilesystemAdapter implements FilesystemAdapter, ChecksumProvider
         $iterator = $deep ? $this->listDirectoryRecursively($location) : $this->listDirectory($location);
 
         foreach ($iterator as $fileInfo) {
-            if ($fileInfo->isLink()) {
-                if ($this->linkHandling & self::SKIP_LINKS) {
-                    continue;
+            $pathName = $fileInfo->getPathname();
+
+            try {
+                if ($fileInfo->isLink()) {
+                    if ($this->linkHandling & self::SKIP_LINKS) {
+                        continue;
+                    }
+                    throw SymbolicLinkEncountered::atLocation($pathName);
                 }
-                throw SymbolicLinkEncountered::atLocation($fileInfo->getPathname());
+
+                $path = $this->prefixer->stripPrefix($pathName);
+                $lastModified = $fileInfo->getMTime();
+                $isDirectory = $fileInfo->isDir();
+                $permissions = octdec(substr(sprintf('%o', $fileInfo->getPerms()), -4));
+                $visibility = $isDirectory ? $this->visibility->inverseForDirectory($permissions) : $this->visibility->inverseForFile($permissions);
+
+                yield $isDirectory ? new DirectoryAttributes(str_replace('\\', '/', $path), $visibility, $lastModified) : new FileAttributes(
+                    str_replace('\\', '/', $path),
+                    $fileInfo->getSize(),
+                    $visibility,
+                    $lastModified
+                );
+            } catch (Throwable $exception) {
+                if (file_exists($pathName)) {
+                    throw $exception;
+                }
             }
-
-            $path = $this->prefixer->stripPrefix($fileInfo->getPathname());
-            $lastModified = $fileInfo->getMTime();
-            $isDirectory = $fileInfo->isDir();
-            $permissions = octdec(substr(sprintf('%o', $fileInfo->getPerms()), -4));
-            $visibility = $isDirectory ? $this->visibility->inverseForDirectory($permissions) : $this->visibility->inverseForFile($permissions);
-
-            yield $isDirectory ? new DirectoryAttributes(str_replace('\\', '/', $path), $visibility, $lastModified) : new FileAttributes(
-                str_replace('\\', '/', $path),
-                $fileInfo->getSize(),
-                $visibility,
-                $lastModified
-            );
         }
     }
 
@@ -450,7 +433,7 @@ class LocalFilesystemAdapter implements FilesystemAdapter, ChecksumProvider
         $checksum = @hash_file($algo, $location);
 
         if ($checksum === false) {
-            throw new UnableToProvideChecksum(error_get_last()['message'], $path);
+            throw new UnableToProvideChecksum(error_get_last()['message'] ?? '', $path);
         }
 
         return $checksum;

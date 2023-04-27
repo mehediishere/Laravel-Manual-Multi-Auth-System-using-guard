@@ -15,33 +15,21 @@ use function implode;
 use function is_file;
 use function md5;
 use function serialize;
+use function unserialize;
 use SebastianBergmann\CodeCoverage\Util\Filesystem;
 use SebastianBergmann\FileIterator\Facade as FileIteratorFacade;
 
 /**
  * @internal This class is not covered by the backward compatibility promise for phpunit/php-code-coverage
+ *
+ * @psalm-import-type LinesOfCodeType from \SebastianBergmann\CodeCoverage\StaticAnalysis\FileAnalyser
  */
 final class CachingFileAnalyser implements FileAnalyser
 {
-    /**
-     * @var ?string
-     */
-    private static $cacheVersion;
-
-    /**
-     * @var FileAnalyser
-     */
-    private $analyser;
-
-    /**
-     * @var array
-     */
-    private $cache = [];
-
-    /**
-     * @var string
-     */
-    private $directory;
+    private static ?string $cacheVersion = null;
+    private readonly FileAnalyser $analyser;
+    private array $cache = [];
+    private readonly string $directory;
 
     public function __construct(string $directory, FileAnalyser $analyser)
     {
@@ -79,7 +67,7 @@ final class CachingFileAnalyser implements FileAnalyser
     }
 
     /**
-     * @psalm-return array{linesOfCode: int, commentLinesOfCode: int, nonCommentLinesOfCode: int}
+     * @psalm-return LinesOfCodeType
      */
     public function linesOfCodeFor(string $filename): array
     {
@@ -130,10 +118,7 @@ final class CachingFileAnalyser implements FileAnalyser
         $this->write($filename, $this->cache[$filename]);
     }
 
-    /**
-     * @return mixed
-     */
-    private function read(string $filename)
+    private function read(string $filename): array|false
     {
         $cacheFile = $this->cacheFile($filename);
 
@@ -147,10 +132,7 @@ final class CachingFileAnalyser implements FileAnalyser
         );
     }
 
-    /**
-     * @param mixed $data
-     */
-    private function write(string $filename, $data): void
+    private function write(string $filename, array $data): void
     {
         file_put_contents(
             $this->cacheFile($filename),

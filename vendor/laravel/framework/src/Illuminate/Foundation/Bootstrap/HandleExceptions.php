@@ -17,7 +17,7 @@ class HandleExceptions
     /**
      * Reserved memory so that errors can be displayed properly on memory exhaustion.
      *
-     * @var string
+     * @var string|null
      */
     public static $reservedMemory;
 
@@ -60,35 +60,17 @@ class HandleExceptions
      * @param  string  $message
      * @param  string  $file
      * @param  int  $line
-     * @param  array  $context
      * @return void
      *
      * @throws \ErrorException
      */
-    public function handleError($level, $message, $file = '', $line = 0, $context = [])
+    public function handleError($level, $message, $file = '', $line = 0)
     {
         if ($this->isDeprecation($level)) {
-            return $this->handleDeprecationError($message, $file, $line, $level);
-        }
-
-        if (error_reporting() & $level) {
+            $this->handleDeprecationError($message, $file, $line, $level);
+        } elseif (error_reporting() & $level) {
             throw new ErrorException($message, 0, $level, $file, $line);
         }
-    }
-
-    /**
-     * Reports a deprecation to the "deprecations" logger.
-     *
-     * @param  string  $message
-     * @param  string  $file
-     * @param  int  $line
-     * @return void
-     *
-     * @deprecated Use handleDeprecationError instead.
-     */
-    public function handleDeprecation($message, $file, $line)
-    {
-        $this->handleDeprecationError($message, $file, $line);
     }
 
     /**
@@ -102,16 +84,13 @@ class HandleExceptions
      */
     public function handleDeprecationError($message, $file, $line, $level = E_DEPRECATED)
     {
-        if (! class_exists(LogManager::class)
-            || ! static::$app->hasBeenBootstrapped()
-            || static::$app->runningUnitTests()
-        ) {
+        if ($this->shouldIgnoreDeprecationErrors()) {
             return;
         }
 
         try {
             $logger = static::$app->make(LogManager::class);
-        } catch (Exception $e) {
+        } catch (Exception) {
             return;
         }
 
@@ -128,6 +107,18 @@ class HandleExceptions
                 ));
             }
         });
+    }
+
+    /**
+     * Determine if deprecation errors should be ignored.
+     *
+     * @return bool
+     */
+    protected function shouldIgnoreDeprecationErrors()
+    {
+        return ! class_exists(LogManager::class)
+            || ! static::$app->hasBeenBootstrapped()
+            || static::$app->runningUnitTests();
     }
 
     /**
@@ -189,12 +180,16 @@ class HandleExceptions
 
         try {
             $this->getExceptionHandler()->report($e);
-        } catch (Exception $e) {
-            //
+        } catch (Exception) {
+            $exceptionHandlerFailed = true;
         }
 
         if (static::$app->runningInConsole()) {
             $this->renderForConsole($e);
+
+            if ($exceptionHandlerFailed ?? false) {
+                exit(1);
+            }
         } else {
             $this->renderHttpResponse($e);
         }

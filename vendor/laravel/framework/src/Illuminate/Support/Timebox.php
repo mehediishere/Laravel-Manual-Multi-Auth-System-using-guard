@@ -2,6 +2,8 @@
 
 namespace Illuminate\Support;
 
+use Throwable;
+
 class Timebox
 {
     /**
@@ -14,20 +16,32 @@ class Timebox
     /**
      * Invoke the given callback within the specified timebox minimum.
      *
-     * @param  callable  $callback
+     * @template TCallReturnType
+     *
+     * @param  (callable($this): TCallReturnType)  $callback
      * @param  int  $microseconds
-     * @return mixed
+     * @return TCallReturnType
      */
     public function call(callable $callback, int $microseconds)
     {
+        $exception = null;
+
         $start = microtime(true);
 
-        $result = $callback($this);
+        try {
+            $result = $callback($this);
+        } catch (Throwable $caught) {
+            $exception = $caught;
+        }
 
         $remainder = intval($microseconds - ((microtime(true) - $start) * 1000000));
 
         if (! $this->earlyReturn && $remainder > 0) {
             $this->usleep($remainder);
+        }
+
+        if ($exception) {
+            throw $exception;
         }
 
         return $result;
